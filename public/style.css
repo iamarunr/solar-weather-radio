@@ -167,8 +167,10 @@ html { scroll-behavior: smooth; }
 .scales th { font: 400 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-align: left; padding: 0 8px 8px 0; }
 .scales td { padding: 8px 8px 8px 0; border-top: 1px solid var(--line); color: var(--mute); vertical-align: top; }
 .scales td:last-child { font: 12px var(--mono); color: var(--ink); white-space: nowrap; padding-right: 0; }
-.about .why { max-width: 70ch; margin: 48px 0 0; font-size: 16px; }
-.about .why b { color: var(--ink); font-weight: 500; }
+.meaning { display: grid; grid-template-columns: 1fr 3fr; gap: 40px; margin-top: 64px; }
+.meaning > div { max-width: 62ch; }
+.meaning p { font-size: 17px; line-height: 1.6; margin-bottom: 18px; }
+.meaning p.last { color: var(--ink); margin-bottom: 0; }
 .about .credit { margin: 28px 0 0; font: 11px var(--mono); letter-spacing: 0.04em; color: var(--dim); }
 
 /* ---------- site footer ---------- */
@@ -185,6 +187,7 @@ html { scroll-behavior: smooth; }
 @media (max-width: 1200px) { .about-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 1000px) {
   .about-grid { grid-template-columns: 1fr; }
+  .meaning { grid-template-columns: 1fr; gap: 0; }
   .nav .status { display: none; }
   main { grid-template-columns: 1fr; gap: 32px; }
   .center { order: -1; }
