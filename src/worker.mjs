@@ -41,8 +41,10 @@ async function refresh(key) {
   }
 }
 
-// Make sure the given sources are loaded. Sources we already have are refreshed in the background
-// (stale-while-revalidate), so only a cold start ever waits on upstream APIs.
+// Make sure the given sources are loaded. Slightly stale sources are refreshed in the background
+// (stale-while-revalidate). A request only waits on upstream APIs when a source is missing, or
+// (for up to OVERDUE_WAIT) when it is more than three times past its shelf life.
+const OVERDUE_WAIT = 2500;
 async function ensure(keys, env, ctx) {
   NASA_KEY = env.NASA_API_KEY || 'DEMO_KEY';
   DEMO = NASA_KEY === 'DEMO_KEY';
@@ -53,7 +55,7 @@ async function ensure(keys, env, ctx) {
       if (saved) cache = { ...saved, ...cache };
     } catch (err) { console.warn('[kv]', err.message); }
   }
-  const blocking = [];
+  const blocking = [], overdue = [];
   for (const key of keys) {
     if (Date.now() - (cache[key]?.lastTry || 0) < ttl(key)) continue;
     if (!inflight.has(key)) {
@@ -66,10 +68,17 @@ async function ensure(keys, env, ctx) {
       }).finally(() => inflight.delete(key));
       inflight.set(key, job);
     }
-    if (cache[key]?.data == null) blocking.push(inflight.get(key));
-    else ctx.waitUntil(inflight.get(key));
+    const job = inflight.get(key);
+    ctx.waitUntil(job);
+    if (cache[key]?.data == null) blocking.push(job);
+    // An isolate that sat idle (or just loaded an old copy from KV) holds data well past its
+    // shelf life. Give the refresh a moment to land instead of showing a visitor old readings.
+    else if (Date.now() - cache[key].fetchedAt > 3 * ttl(key)) overdue.push(job);
   }
   await Promise.all(blocking);
+  if (overdue.length) {
+    await Promise.race([Promise.all(overdue), new Promise(r => setTimeout(r, OVERDUE_WAIT))]);
+  }
 }
 
 // ---------- pollers ----------
