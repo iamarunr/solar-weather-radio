@@ -124,7 +124,9 @@ input[type="checkbox"] { accent-color: #fff; margin: 0 6px 0 0; vertical-align: 
 .gauge span { font: 300 64px/0.9 var(--sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .gauge small { font: 300 22px var(--sans); color: var(--mute); }
 .aurora-text { flex: 1; min-width: 0; }
-#a-verdict { font-size: 16px; margin-bottom: 14px; }
+#a-verdict { font-size: 16px; margin-bottom: 6px; }
+#a-why { color: var(--mute); margin-bottom: 16px; max-width: 64ch; }
+#a-why:empty { margin-bottom: 8px; }
 .sky { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 28px; justify-content: start; margin-bottom: 12px; }
 .sky:empty { display: none; }
 .sky div { display: flex; flex-direction: column; gap: 4px; }

@@ -158,6 +158,7 @@ const hhmm = t => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: 
 
 async function loadAurora(lat, lon) {
   $('a-verdict').textContent = 'Reading the auroral oval and the clouds…';
+  $('a-why').textContent = '';
   try {
     const a = await (await fetch(`/api/aurora?lat=${lat.toFixed(2)}&lon=${lon.toFixed(2)}`)).json();
     if (a.error) throw new Error(a.error);
@@ -166,14 +167,22 @@ async function loadAurora(lat, lon) {
     $('aurora').style.setProperty('--chance', a.chance);
     $('a-chance').textContent = a.chance;
 
-    const cloudy = sky.clouds != null && sky.clouds >= 70;
-    $('a-verdict').textContent =
-      !sky.darkFrom ? 'Too bright tonight: the sun barely sets where you are.' :
-      a.activity >= 20 && cloudy && sky.clearest.cloud >= 60 ? 'The aurora is active, but clouds will likely hide it.' :
-      a.chance >= 50 ? 'Good odds: get somewhere dark and look poleward.' :
-      a.chance >= 20 ? `Possible on the horizon${sky.clearest ? `, best around ${hhmm(sky.clearest.t)}` : ''}.` :
-      a.chance >= 5 ? 'Unlikely, but keep an eye out if activity picks up.' :
-      'Not tonight from here.';
+    // Headline verdict, plus one plain sentence saying why.
+    const cloudy = sky.clouds != null && sky.clouds >= 70 && sky.clearest.cloud >= 60;
+    const toward = lat >= 0 ? 'south' : 'north';           // direction away from the pole
+    const pole = lat >= 0 ? 'north' : 'south';
+    const kpGap = a.kpTonight < a.kpNeeded;
+    const quiet = `The Sun is too quiet to push the aurora this far ${toward}. It usually takes a Kp of ${a.kpNeeded} or more here, and tonight's forecast peaks at ${a.kpTonight.toFixed(1)}.`;
+    const best = sky.clearest ? ` The clearest sky is around ${hhmm(sky.clearest.t)}.` : '';
+    const [verdict, why] =
+      !sky.darkFrom ? ['The sky won\'t get dark enough tonight.', 'The Sun barely sets where you are at this time of year, so any aurora would be washed out.'] :
+      a.activity >= 20 && cloudy ? ['The aurora is active, but clouds will likely hide it.', `Cloud cover averages ${sky.clouds}% during the dark hours.${best}`] :
+      a.chance >= 50 ? ['Good chance of aurora tonight.', `Get away from city lights and look ${pole}.${best}`] :
+      a.chance >= 20 ? ['Aurora is possible tonight, low on the horizon.', `Find a dark spot with an open view to the ${pole}.${best}`] :
+      a.chance >= 5 ? ['Aurora is unlikely tonight, but not impossible.', kpGap ? quiet : `Activity is low right now. It's worth another look if the Kp index climbs.`] :
+      ['No aurora expected at your location tonight.', kpGap ? quiet : (sky.clouds >= 70 ? `Activity is low, and cloud cover averages ${sky.clouds}% during the dark hours.` : 'The aurora is too faint and too far away to see from here right now.')];
+    $('a-verdict').textContent = verdict;
+    $('a-why').textContent = why;
 
     const stats = [
       ['Aurora activity', `${a.activity}%`],
