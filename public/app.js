@@ -91,11 +91,28 @@ function renderLog({ flares, cmes, storms }) {
 
   const ol = $('events');
   if (!items.length) { ol.innerHTML = '<li class="empty">A quiet week on the Sun.</li>'; return; }
+  // These fields come from NASA and NOAA. Insert them as text, never as HTML, and only link to https.
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
   ol.replaceChildren(...items.map(x => {
-    const li = document.createElement('li');
-    const when = new Date(x.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    const body = `<div><div class="what">${x.what}</div><div class="when">${when}${x.src === 'GOES' ? ' · GOES' : ''}</div></div>`;
-    li.innerHTML = `<span class="tag ${x.tag}">${x.label}</span>` + (x.link ? `<a href="${x.link}" target="_blank" rel="noopener">${body}</a>` : body);
+    const li = el('li');
+    const date = new Date(x.t);
+    const when = isNaN(date) ? String(x.t) : date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const body = el('div');
+    body.append(el('div', 'what', x.what), el('div', 'when', when + (x.src === 'GOES' ? ' · GOES' : '')));
+    li.append(el('span', `tag ${x.tag}`, x.label));
+    let href = null;
+    try { const u = new URL(x.link); if (u.protocol === 'https:') href = u.href; } catch {}
+    if (href) {
+      const link = el('a');
+      link.href = href; link.target = '_blank'; link.rel = 'noopener';
+      link.append(body);
+      li.append(link);
+    } else li.append(body);
     return li;
   }));
 }
