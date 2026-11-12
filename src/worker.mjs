@@ -1,74 +1,75 @@
-// Solar Weather Radio — tiny zero-dependency backend.
-// Polls NASA DONKI (flares, CMEs, geomagnetic storms) plus NOAA SWPC real-time
-// feeds, caches everything in memory and on disk, and serves the web app.
+// Solar Weather Radio — Cloudflare Worker backend.
+// Fetches NASA DONKI (flares, CMEs, geomagnetic storms) and NOAA SWPC real-time feeds on demand,
+// caches them in memory per isolate (and in KV across isolates), and serves the JSON API.
+// Static files in public/ are served by Workers static assets.
 
-import http from 'node:http';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.dirname(fileURLToPath(import.meta.url));
-
-// Minimal .env loader so `NASA_API_KEY=...` in .env just works.
-const envFile = path.join(ROOT, '.env');
-if (existsSync(envFile)) {
-  for (const line of readFileSync(envFile, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
-  }
-}
-
-const PORT = Number(process.env.PORT || 5173);
-const NASA_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
-const DEMO = NASA_KEY === 'DEMO_KEY';
-const CACHE_DIR = path.join(ROOT, '.cache');
-const CACHE_FILE = path.join(CACHE_DIR, 'state.json');
+let NASA_KEY = 'DEMO_KEY';
+let DEMO = true;
 
 const MIN = 60_000;
-// DEMO_KEY allows ~10–30 req/hour, so poll DONKI gently. NOAA is unmetered.
-const DONKI_EVERY = DEMO ? 30 * MIN : 10 * MIN;
-const FAST_EVERY = 1 * MIN;   // solar wind + X-ray flux
-const KP_EVERY = 5 * MIN;
-const OVATION_EVERY = 10 * MIN;
-
 const SWPC = 'https://services.swpc.noaa.gov';
 const DONKI = 'https://api.nasa.gov/DONKI';
 
-/** @type {Record<string, {data:any, fetchedAt:number, error?:string}>} */
-let cache = {};
-try { cache = JSON.parse(await readFile(CACHE_FILE, 'utf8')); } catch {}
+// How long each source stays fresh. DEMO_KEY allows ~10 req/hour, so DONKI is fetched gently.
+const ttl = key => ({
+  donki: DEMO ? 30 * MIN : 10 * MIN,
+  goesFlares: 5 * MIN, xray: MIN, wind: MIN, kp: 5 * MIN, ovation: 10 * MIN,
+}[key]);
 
-let saveTimer;
-function persist() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    await mkdir(CACHE_DIR, { recursive: true });
-    // OVATION is ~1 MB; it refreshes fast enough that we don't need it on disk.
-    const { ovation, ...rest } = cache;
-    await writeFile(CACHE_FILE, JSON.stringify(rest));
-  }, 500);
-}
+/** @type {Record<string, {data:any, fetchedAt:number, lastTry?:number, error?:string}>} */
+let cache = {};
+let kvLoaded = false;
+const inflight = new Map();
 
 const day = (offset = 0) => new Date(Date.now() + offset * 864e5).toISOString().slice(0, 10);
 
 async function getJSON(url) {
-  const res = await fetch(url, { headers: { 'user-agent': 'solar-weather-radio/1.0' }, signal: AbortSignal.timeout(20_000) });
+  const res = await fetch(url, { headers: { 'user-agent': 'solar-weather-radio/1.0' }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const body = await res.json();
   if (body?.error?.code) throw new Error(body.error.code);
   return body;
 }
 
-async function refresh(key, fn) {
+async function refresh(key) {
   try {
-    cache[key] = { data: await fn(), fetchedAt: Date.now() };
+    cache[key] = { data: await pollers[key](), fetchedAt: Date.now(), lastTry: Date.now() };
   } catch (err) {
     // Keep the last good data; just note the failure.
-    cache[key] = { ...(cache[key] || { data: null, fetchedAt: 0 }), error: String(err.message || err) };
+    cache[key] = { ...(cache[key] || { data: null, fetchedAt: 0 }), lastTry: Date.now(), error: String(err.message || err) };
     console.warn(`[${key}] ${err.message || err}`);
   }
-  persist();
+}
+
+// Make sure the given sources are loaded. Sources we already have are refreshed in the background
+// (stale-while-revalidate), so only a cold start ever waits on upstream APIs.
+async function ensure(keys, env, ctx) {
+  NASA_KEY = env.NASA_API_KEY || 'DEMO_KEY';
+  DEMO = NASA_KEY === 'DEMO_KEY';
+  if (!kvLoaded) {
+    kvLoaded = true;
+    try {
+      const saved = await env.CACHE?.get('state', 'json');
+      if (saved) cache = { ...saved, ...cache };
+    } catch (err) { console.warn('[kv]', err.message); }
+  }
+  const blocking = [];
+  for (const key of keys) {
+    if (Date.now() - (cache[key]?.lastTry || 0) < ttl(key)) continue;
+    if (!inflight.has(key)) {
+      const job = refresh(key).then(() => {
+        // DONKI is rate-limited, so share it (and the rest of the small state) across isolates.
+        if (key === 'donki' && env.CACHE) {
+          const { ovation, ...rest } = cache;
+          return env.CACHE.put('state', JSON.stringify(rest)).catch(err => console.warn('[kv]', err.message));
+        }
+      }).finally(() => inflight.delete(key));
+      inflight.set(key, job);
+    }
+    if (cache[key]?.data == null) blocking.push(inflight.get(key));
+    else ctx.waitUntil(inflight.get(key));
+  }
+  await Promise.all(blocking);
 }
 
 // ---------- pollers ----------
@@ -121,15 +122,6 @@ const pollers = {
   },
 };
 
-const schedule = { donki: DONKI_EVERY, goesFlares: 5 * MIN, xray: FAST_EVERY, wind: FAST_EVERY, kp: KP_EVERY, ovation: OVATION_EVERY };
-
-for (const [key, every] of Object.entries(schedule)) {
-  const age = Date.now() - (cache[key]?.fetchedAt || 0);
-  // On boot, only hit DONKI if the disk cache is stale — protects the rate limit across restarts.
-  setTimeout(() => refresh(key, pollers[key]), age >= every ? 0 : every - age);
-  setInterval(() => refresh(key, pollers[key]), every);
-}
-
 // ---------- derived "musical" state ----------
 
 const CLASS_BASE = { A: 1e-8, B: 1e-7, C: 1e-6, M: 1e-5, X: 1e-4 };
@@ -141,6 +133,7 @@ const fluxToClass = f => {
   if (!f || f <= 0) return 'A0.0';
   const letters = ['A', 'B', 'C', 'M', 'X'];
   let i = Math.min(4, Math.max(0, Math.floor(Math.log10(f)) + 8));
+  if (i < 4 && f / CLASS_BASE[letters[i]] >= 9.95) i++; // 9.97 would round to "B10.0"; call it C1.0
   return `${letters[i]}${(f / CLASS_BASE[letters[i]]).toFixed(1)}`;
 };
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -353,51 +346,43 @@ let sun = { buf: null, at: 0, captured: null };
 async function sunImage() {
   if (sun.buf && Date.now() - sun.at < 15 * MIN) return sun;
   try {
-    const res = await fetch('https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0171.jpg', { signal: AbortSignal.timeout(20_000) });
+    const res = await fetch('https://sdo.gsfc.nasa.gov/assets/img/latest/latest_1024_0171.jpg', { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) throw new Error(`${res.status}`);
-    sun = { buf: Buffer.from(await res.arrayBuffer()), at: Date.now(), captured: res.headers.get('last-modified') };
+    sun = { buf: await res.arrayBuffer(), at: Date.now(), captured: res.headers.get('last-modified') };
   } catch (err) {
     console.warn('[sun]', err.message);
-    if (!sun.buf) throw Object.assign(new Error('sun image unavailable'), { code: 'ENOENT' });
+    if (!sun.buf) return null;
   }
   return sun;
 }
 
 // ---------- http ----------
 
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.map': 'application/json' };
-const STATIC = {
-  '/vendor/tone.js': path.join(ROOT, 'node_modules/tone/build/Tone.js'),
+const json = (body, status = 200) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    try {
+      if (url.pathname === '/api/state') {
+        await ensure(['donki', 'goesFlares', 'xray', 'wind', 'kp'], env, ctx);
+        return json(buildState());
+      }
+      if (url.pathname === '/api/aurora') {
+        const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
+        if (!url.searchParams.get('lat') || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return json({ error: 'lat/lon required' }, 400);
+        await ensure(['kp', 'ovation'], env, ctx);
+        return json(await aurora(lat, lon));
+      }
+      if (url.pathname === '/api/sun.jpg') {
+        const img = await sunImage();
+        if (!img) return new Response('sun image unavailable', { status: 502 });
+        return new Response(img.buf, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=300', 'x-captured': img.captured || '' } });
+      }
+      return env.ASSETS.fetch(request);
+    } catch (err) {
+      console.error(err);
+      return json({ error: 'internal' }, 500);
+    }
+  },
 };
-
-function send(res, code, body, type = 'application/json') {
-  res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
-  res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
-}
-
-http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x');
-  try {
-    if (url.pathname === '/api/state') return send(res, 200, buildState());
-    if (url.pathname === '/api/sun.jpg') {
-      const img = await sunImage();
-      res.writeHead(200, { 'content-type': 'image/jpeg', 'cache-control': 'max-age=300', 'x-captured': img.captured || '' });
-      return res.end(img.buf);
-    }
-    if (url.pathname === '/api/aurora') {
-      const lat = Number(url.searchParams.get('lat')), lon = Number(url.searchParams.get('lon'));
-      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return send(res, 400, { error: 'lat/lon required' });
-      return send(res, 200, await aurora(lat, lon));
-    }
-    let file = STATIC[url.pathname] || path.join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);
-    if (!file.startsWith(path.join(ROOT, 'public')) && !Object.values(STATIC).includes(file)) return send(res, 403, 'forbidden', 'text/plain');
-    const buf = await readFile(file);
-    send(res, 200, buf, MIME[path.extname(file)] || 'application/octet-stream');
-  } catch (err) {
-    if (err.code === 'ENOENT' || err.code === 'EISDIR') return send(res, 404, 'not found', 'text/plain');
-    console.error(err);
-    send(res, 500, { error: 'internal' });
-  }
-}).listen(PORT, () => {
-  console.log(`Solar Weather Radio on http://localhost:${PORT}  (NASA key: ${DEMO ? 'DEMO_KEY — get your own at https://api.nasa.gov' : 'custom'})`);
-});

@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "solar-weather-radio",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-01",
+  // Tone.js is served from public/vendor, copied out of node_modules before dev and deploy.
+  "build": { "command": "mkdir -p public/vendor && cp node_modules/tone/build/Tone.js public/vendor/tone.js" },
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  // Shares the rate-limited DONKI data across isolates. Created automatically on first deploy.
+  "kv_namespaces": [{ "binding": "CACHE" }],
+  "observability": { "enabled": true }
+}

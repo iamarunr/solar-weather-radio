@@ -2,11 +2,11 @@
   "name": "solar-weather-radio",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.mjs",
-    "dev": "node --watch server.mjs"
+    "start": "wrangler dev --port 5173",
+    "dev": "wrangler dev --port 5173",
+    "deploy": "wrangler deploy"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +14,8 @@
   "type": "module",
   "dependencies": {
     "tone": "^15.1.22"
+  },
+  "devDependencies": {
+    "wrangler": "^4.160.1"
   }
 }

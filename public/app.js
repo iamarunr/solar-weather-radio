@@ -45,7 +45,8 @@ function classStrength(cls) {
 
 const fmtClass = flux => {
   const letters = ['A', 'B', 'C', 'M', 'X'];
-  const i = Math.min(4, Math.max(0, Math.floor(Math.log10(flux)) + 8));
+  let i = Math.min(4, Math.max(0, Math.floor(Math.log10(flux)) + 8));
+  if (i < 4 && flux / 10 ** (i - 8) >= 9.95) i++;
   return `${letters[i]}${(flux / 10 ** (i - 8)).toFixed(1)}`;
 };
 

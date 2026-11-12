@@ -1,0 +1,3 @@
+# Local dev only. Get a free key at https://api.nasa.gov
+# In production: npx wrangler secret put NASA_API_KEY
+NASA_API_KEY=
