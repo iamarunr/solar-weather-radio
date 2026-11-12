@@ -2,6 +2,8 @@
 
 **Listen live: [solar-weather-radio.kn-naresh.workers.dev](https://solar-weather-radio.kn-naresh.workers.dev)**
 
+[![Solar Weather Radio: a live image of the Sun with space weather readings, an event log and an aurora forecast](docs/screenshot.png)](https://solar-weather-radio.kn-naresh.workers.dev)
+
 A live, generative ambient soundtrack driven by the Sun. Solar flares, coronal mass ejections and
 geomagnetic storms from NASA's [DONKI](https://api.nasa.gov) (plus NOAA SWPC real-time feeds) are
 mapped to musical parameters and played with Tone.js. It also includes a "chance of aurora where you
