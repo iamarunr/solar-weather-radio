@@ -76,5 +76,27 @@ recording a portfolio video when the Sun is quiet.
 
 - DONKI's `FLR` endpoint was returning 404 as of Nov 2026, so flares fall back to NOAA's GOES flare
   list automatically (the log marks those `GOES`).
-- The Worker has no runtime dependencies. Tone.js is copied from `node_modules` into
-  `public/vendor/` by the build step in `wrangler.jsonc`.
+- The Worker has no runtime dependencies. Tone.js and the two fonts are copied from `node_modules`
+  into `public/vendor/` by `npm run vendor`, which `wrangler dev` and `wrangler deploy` run for you.
+  Nothing is loaded from a third-party host at runtime.
+
+## Code layout
+
+| File                                   | What it does                                                        |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| [src/worker.mjs](src/worker.mjs)       | Routes: `/api/state`, `/api/aurora`, `/api/sun.jpg`                 |
+| [src/sources.mjs](src/sources.mjs)     | Fetches and caches NASA DONKI and NOAA SWPC                         |
+| [src/state.mjs](src/state.mjs)         | Readings → musical parameters and the event log                     |
+| [src/aurora.mjs](src/aurora.mjs)       | Aurora odds: OVATION, darkness and cloud cover                      |
+| [src/sun.mjs](src/sun.mjs)             | Proxies the latest SDO image                                        |
+| [public/mapping.js](public/mapping.js) | The reading → music formulas, shared by the Worker and the page     |
+| [public/app.js](public/app.js)         | Page wiring: polling, readings, transport, Simulate                 |
+| [public/audio.js](public/audio.js)     | The Tone.js engine (Tone.js itself is loaded after the page is idle) |
+| [public/visuals.js](public/visuals.js) | The canvas: Sun, reticle, waveform, solar wind                      |
+| [public/aurora.js](public/aurora.js)   | The aurora panel                                                    |
+
+## Accessibility
+
+Keyboard operable throughout, with a skip link, labelled landmarks and controls, text contrast of
+at least 4.5:1, screen-reader announcements for the aurora result, and no animation for visitors
+who ask their system to reduce motion.

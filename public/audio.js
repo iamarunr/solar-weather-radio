@@ -5,7 +5,20 @@
 //   rumble (0/1)    ← Earth-directed CME inbound       → sub-bass swell
 // plus mode (B/C/M/X) which picks the scale.
 
-const Tone = window.Tone;
+// Tone.js is ~345 KB, so it is not part of the page load. It is fetched when the browser is
+// idle (or when the visitor reaches for the play button) and is ready by the time they press it.
+let Tone = null;
+let toneLoading = null;
+export function loadTone() {
+  toneLoading ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = '/vendor/tone.js';
+    script.onload = () => resolve(window.Tone);
+    script.onerror = () => { toneLoading = null; script.remove(); reject(new Error('Tone.js failed to load')); };
+    document.head.append(script);
+  });
+  return toneLoading;
+}
 
 const SCALES = {
   B: [0, 2, 4, 7, 9],              // major pentatonic — quiet sun
@@ -30,14 +43,19 @@ export class SolarEngine {
     this.params = { intensity: 0.2, tempo: 70, texture: 0.2, rumble: 0, density: 0.3, mode: 'B' };
     this.bar = 0;
     this.started = false;
+    this.paused = false;
+    this.volume = 0.9;
     this.listeners = new Set();
   }
+
+  get playing() { return this.started && !this.paused; }
 
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit(type, data) { for (const fn of this.listeners) fn(type, data); }
 
   async start() {
     if (this.started) return;
+    Tone = await loadTone();
     await Tone.start();
     this.build();
     this.apply(this.params, 0.01);
@@ -48,12 +66,10 @@ export class SolarEngine {
   build() {
     const T = Tone;
     this.master = new T.Gain(0).toDestination();
-    this.master.gain.rampTo(0.9, 4);
+    this.master.gain.rampTo(this.volume, 4);
     this.limiter = new T.Limiter(-3).connect(this.master);
-    this.analyser = new T.Analyser('waveform', 512);
-    this.fft = new T.Analyser('fft', 64);
+    this.analyser = new T.Analyser('waveform', 256);
     this.limiter.connect(this.analyser);
-    this.limiter.connect(this.fft);
 
     this.reverb = new T.Reverb({ decay: 9, preDelay: 0.08, wet: 0.55 }).connect(this.limiter);
     this.delay = new T.FeedbackDelay({ delayTime: '4n.', feedback: 0.45, wet: 0.3 }).connect(this.reverb);
@@ -217,20 +233,28 @@ export class SolarEngine {
     this.emit('flare', { strength, peakIn: dur * 0.6 });
   }
 
-  setVolume(v) { if (this.master) this.master.gain.rampTo(v, 0.3); }
+  /** The current waveform (256 samples, −1…1), or null while silent. */
+  waveform() { return this.playing && this.analyser ? this.analyser.getValue() : null; }
 
-  async stop() {
-    if (!this.started) return;
-    this.master.gain.rampTo(0, 1.5);
-    await new Promise(r => setTimeout(r, 1600));
-    Tone.getTransport().pause();
+  setVolume(v) {
+    this.volume = v;
+    if (this.playing) this.master.gain.rampTo(v, 0.3);
+  }
+
+  /** Fade out, then stop the clock. Safe to call resume() during the fade. */
+  pause() {
+    if (!this.playing) return;
     this.paused = true;
+    this.master.gain.rampTo(0, 1.5);
+    this.pauseTimer = setTimeout(() => Tone.getTransport().pause(), 1600);
   }
 
   async resume() {
+    if (!this.started || !this.paused) return;
+    clearTimeout(this.pauseTimer);
     await Tone.start();
     Tone.getTransport().start();
-    this.master.gain.rampTo(0.9, 2);
+    this.master.gain.rampTo(this.volume, 2);
     this.paused = false;
   }
 }

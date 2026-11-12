@@ -1,11 +1,11 @@
 {
   "name": "solar-weather-radio",
   "version": "1.0.0",
-  "description": "",
+  "description": "A live, generative ambient soundtrack driven by the Sun.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "wrangler dev --port 5173",
+    "vendor": "mkdir -p public/vendor/fonts && cp node_modules/tone/build/Tone.js public/vendor/tone.js && cp node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2 node_modules/@fontsource/dm-mono/files/dm-mono-latin-400-normal.woff2 node_modules/@fontsource/dm-mono/files/dm-mono-latin-500-normal.woff2 public/vendor/fonts/",
     "dev": "wrangler dev --port 5173",
+    "start": "wrangler dev --port 5173",
     "deploy": "wrangler deploy"
   },
   "keywords": [],
@@ -16,6 +16,8 @@
     "tone": "^15.1.22"
   },
   "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/dm-mono": "^5.3.0",
     "wrangler": "^4.160.1"
   }
 }
