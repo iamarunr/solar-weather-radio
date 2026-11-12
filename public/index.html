@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solar Weather Radio</title>
+  <meta name="description" content="A live generative ambient soundtrack driven by the Sun — NASA DONKI + NOAA SWPC data turned into sound.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='9' fill='%23fff'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/vendor/tone.js"></script>
+</head>
+<body>
+  <canvas id="sky" aria-hidden="true"></canvas>
+
+  <header class="bar">
+    <div class="brand">
+      <span class="onair" id="onair" title="On air"></span>
+      <h1>Solar Weather Radio</h1>
+      <span class="freq">Live from 1&nbsp;AU</span>
+    </div>
+    <div class="status" id="status">connecting…</div>
+  </header>
+
+  <main>
+    <section class="chain" aria-label="Signal chain">
+      <h2>Signal chain</h2>
+      <article class="link" data-k="intensity">
+        <div class="src"><span class="lbl">X-ray flux</span><span class="val" id="r-xray">—</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="dst"><span class="lbl">Intensity</span><div class="meter"><i id="m-intensity"></i></div></div>
+        <p class="hint" id="h-intensity">GOES 0.1–0.8 nm · plus DONKI flares, last 24 h</p>
+      </article>
+      <article class="link" data-k="tempo">
+        <div class="src"><span class="lbl">Solar wind</span><span class="val" id="r-wind">—</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="dst"><span class="lbl">Tempo</span><span class="big" id="r-bpm">—</span></div>
+        <p class="hint">250–900 km/s maps to 48–112 BPM</p>
+      </article>
+      <article class="link" data-k="texture">
+        <div class="src"><span class="lbl">Planetary Kp</span><span class="val" id="r-kp">—</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="dst"><span class="lbl">Texture</span><div class="meter"><i id="m-texture"></i></div></div>
+        <p class="hint" id="h-texture">Storm level adds hiss, crackle and grit</p>
+      </article>
+      <article class="link" data-k="rumble">
+        <div class="src"><span class="lbl">Earthbound CME</span><span class="val" id="r-cme">—</span></div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="dst"><span class="lbl">Rumble</span><span class="big" id="r-rumble">off</span></div>
+        <p class="hint">DONKI WSA-Enlil arrival estimate</p>
+      </article>
+      <div class="mode">Scale <b id="r-mode">—</b></div>
+    </section>
+
+    <section class="center">
+      <figure class="sun" id="sun">
+        <figcaption id="sun-cap">NASA SDO · AIA 171 Å</figcaption>
+      </figure>
+      <button id="play" class="primary">Listen live</button>
+      <div class="transport" id="transport" hidden>
+        <button id="pause" class="ghost">Pause</button>
+        <label class="vol">Volume <input id="vol" type="range" min="0" max="1" step="0.01" value="0.9"></label>
+      </div>
+      <p class="nowline" id="nowline"></p>
+    </section>
+
+    <section class="log" aria-label="Space weather log">
+      <h2>DONKI log</h2>
+      <ol id="events"><li class="empty">Waiting for data…</li></ol>
+    </section>
+  </main>
+
+  <footer class="dock">
+    <section class="aurora" id="aurora">
+      <h2>Aurora tonight, where you are</h2>
+      <div class="aurora-body">
+        <div class="gauge"><span id="a-chance">--</span><small>%</small></div>
+        <div class="aurora-text">
+          <p id="a-verdict">Share your location to see your odds.</p>
+          <div class="sky" id="a-sky"></div>
+          <p class="hint" id="a-detail"></p>
+          <div class="aurora-actions">
+            <button id="locate" class="ghost">Use my location</button>
+            <form id="manual" class="manual">
+              <input name="lat" placeholder="lat" inputmode="decimal" aria-label="Latitude">
+              <input name="lon" placeholder="lon" inputmode="decimal" aria-label="Longitude">
+              <button class="ghost">Set</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sim">
+      <h2><label><input type="checkbox" id="sim-on"> Simulate</label> <span class="hint">Override live data</span></h2>
+      <div class="sim-grid" id="sim-grid">
+        <label>Flare class <input id="s-flux" type="range" min="-8" max="-3" step="0.05" value="-6"><output id="o-flux"></output></label>
+        <label>Wind km/s <input id="s-wind" type="range" min="250" max="900" step="5" value="450"><output id="o-wind"></output></label>
+        <label>Kp <input id="s-kp" type="range" min="0" max="9" step="0.33" value="3"><output id="o-kp"></output></label>
+        <label class="chk"><input id="s-cme" type="checkbox"> CME inbound</label>
+        <button id="s-flare" class="ghost hot">Trigger flare</button>
+      </div>
+    </section>
+  </footer>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
