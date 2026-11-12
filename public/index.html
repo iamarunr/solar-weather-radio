@@ -160,6 +160,30 @@
         <p class="last">It is also a reminder that we live downstream of a star, and that we are the first creatures on Earth able to hear it.</p>
       </div>
     </article>
+    <article class="meaning">
+      <h3>Why I built this</h3>
+      <div>
+        <p>I've always been fascinated by space, and by the Sun most of all.</p>
+        <p>The moment that stayed with me was learning that we aren't only circling the Sun. The Sun is moving too. It carries the whole solar system around the centre of our galaxy, where a black hole four million times its mass sits. One lap takes about 230 million years.</p>
+        <p>That made me feel very small. And yet this one ordinary star is where almost all of our energy comes from. Every meal, every gust of wind and every morning traces back to it. We rely on it every single day and hardly ever think about it.</p>
+        <p class="last">I wanted a way to pay attention to it. So I built it a radio station.</p>
+        <p class="sign">Naresh Kumar</p>
+      </div>
+    </article>
+
+    <article class="sources built">
+      <h3>How it's built</h3>
+      <div>
+        <ol class="steps">
+          <li><b>Spacecraft measure the Sun.</b> NASA and NOAA publish the readings within minutes.</li>
+          <li><b>A small program collects them.</b> It runs on Cloudflare's network, fetches the newest readings and keeps a short-lived copy, so the page loads fast and the agencies' servers aren't asked the same thing twice.</li>
+          <li><b>Your browser makes the music.</b> There are no audio files. Every sound is synthesised on your device with Tone.js, from a handful of numbers that change as the Sun does.</li>
+          <li><b>The picture is drawn live.</b> The Sun is the latest real photo from NASA's Solar Dynamics Observatory, and the ring around it is the sound wave you are hearing.</li>
+        </ol>
+        <p class="disclaimer">Plain HTML, CSS and JavaScript, with no framework. Type is Inter and DM Mono.</p>
+      </div>
+    </article>
+
     <article class="sources">
       <h3>Sources and thanks</h3>
       <div>
