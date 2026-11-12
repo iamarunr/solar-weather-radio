@@ -21,7 +21,7 @@
       <h1>Solar Weather Radio</h1>
       <span class="freq">Live from 1&nbsp;AU</span>
     </div>
-    <div class="status" id="status">connecting…</div>
+    <nav class="nav"><a href="#about">About</a><div class="status" id="status">connecting…</div></nav>
   </header>
 
   <main>
@@ -103,6 +103,60 @@
         <button id="s-flare" class="ghost hot">Trigger flare</button>
       </div>
     </section>
+  </footer>
+
+  <section class="about" id="about" aria-labelledby="about-h">
+    <h2 id="about-h">About this station</h2>
+    <p class="lede">The Sun is writing this music right now. Nothing here is recorded, and it will never play the same way twice.</p>
+
+    <div class="about-grid">
+      <article>
+        <h3>What you're hearing</h3>
+        <p>The Sun has weather. It throws out flashes of light called flares, a constant stream of particles called the solar wind, and sometimes giant clouds of gas. You can't see or hear any of it from Earth.</p>
+        <p>This page listens to that weather and turns each part into a part of a song. When the Sun is calm, the music is slow and gentle. When the Sun is stormy, it gets faster, brighter and rougher.</p>
+      </article>
+
+      <article>
+        <h3>Where it comes from</h3>
+        <p>Spacecraft watch the Sun all day. Two of them sit 1.5 million km from Earth and measure the solar wind as it blows past. Others measure the Sun's X-rays and take its picture.</p>
+        <p>NASA and NOAA publish those numbers for free. Every minute this page asks for the newest ones and nudges the music to match. The Sun at the top is a real photo from NASA's Solar Dynamics Observatory, usually less than an hour old.</p>
+      </article>
+
+      <article>
+        <h3>Who plays what</h3>
+        <dl class="parts">
+          <div><dt>Soft chords</dt><dd>The Sun's steady glow. Brighter X-rays open them up.</dd></div>
+          <div><dt>Bells</dt><dd>Each one is a roll of the dice. The more active the Sun, the more often they ring.</dd></div>
+          <div><dt>Speed</dt><dd>Set by the solar wind: 250 km/s plays at 48 beats a minute, 900 km/s at 112.</dd></div>
+          <div><dt>Hiss and crackle</dt><dd>Earth's magnetic field being shaken. A storm adds static.</dd></div>
+          <div><dt>Deep rumble</dt><dd>A cloud of solar gas is heading for Earth.</dd></div>
+          <div><dt>Rising swell</dt><dd>A new flare just went off.</dd></div>
+        </dl>
+      </article>
+
+      <article>
+        <h3>The notes</h3>
+        <p>Everything is built on the note D. The size of the latest flares picks which seven notes (or five) the Sun is allowed to use, so the mood darkens as the Sun gets angrier.</p>
+        <table class="scales">
+          <thead><tr><th>Sun</th><th>Scale</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Quiet (A, B)</td><td>Major pentatonic</td><td>D E F♯ A B</td></tr>
+            <tr><td>Active (C)</td><td>Lydian</td><td>D E F♯ G♯ A B C♯</td></tr>
+            <tr><td>Strong (M)</td><td>Dorian</td><td>D E F G A B C</td></tr>
+            <tr><td>Extreme (X)</td><td>Phrygian</td><td>D E♭ F G A B♭ C</td></tr>
+          </tbody>
+        </table>
+        <p>The chords change every two bars in a loop of four. The bells pick their notes at random from the current chord.</p>
+      </article>
+    </div>
+
+    <p class="why"><b>Why make it?</b> The same storms that shape this music also paint the auroras, disturb satellites and bend radio signals. Space weather is real and it reaches us, but it is silent and invisible. Giving it a sound makes it something you can feel.</p>
+    <p class="credit">Data: NASA DONKI, NASA SDO, NOAA Space Weather Prediction Center, Open-Meteo. Sound: Tone.js.</p>
+  </section>
+
+  <footer class="site-foot">
+    <p>App conceptualized, designed and built by <b>Naresh Kumar</b><span class="sep" aria-hidden="true">·</span>Enjoying the broadcast? Help keep the station on air: <a href="https://buymeacoffee.com/knnaresh" target="_blank" rel="noopener">☕ Buy me a coffee<span class="sr"> (opens in a new tab)</span></a></p>
+    <p>Need something like this built? <a href="https://knnaresh.com" target="_blank" rel="noopener">Let’s talk <span aria-hidden="true">→</span><span class="sr"> (opens in a new tab)</span></a></p>
   </footer>
 
   <script type="module" src="/app.js"></script>
